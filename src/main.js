@@ -13,11 +13,11 @@ let schedule = JSON.parse(JSON.stringify(initialSchedule)); // Deep copy
 
 // Initialize app
 async function init() {
-  // Load saved data from MongoDB
+  // Load saved data from JSON file
   console.log('Initializing app...');
   const savedMatches = await loadMatches();
   if (savedMatches) {
-    console.log('Using saved schedule from MongoDB');
+    console.log('Using saved schedule from file');
     schedule = savedMatches;
   } else {
     console.log('No saved schedule found, using default schedule');

@@ -1,39 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { MongoClient } from 'mongodb';
 
 const loadDirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_FILE = path.join(loadDirname, '../../db/tournament.json');
-
-let cachedClient = null;
-
-async function connectToDatabase() {
-  if (cachedClient) {
-    return cachedClient;
-  }
-
-  const mongoUri = process.env.MONGODB_URI;
-  
-  if (!mongoUri) {
-    console.warn('MONGODB_URI not set, skipping MongoDB');
-    return null;
-  }
-
-  try {
-    const client = new MongoClient(mongoUri, {
-      maxPoolSize: 10,
-    });
-
-    await client.connect();
-    cachedClient = client;
-    console.log('Connected to MongoDB');
-    return client;
-  } catch (error) {
-    console.warn('Failed to connect to MongoDB:', error.message);
-    return null;
-  }
-}
 
 export default async (req) => {
   const headers = {
@@ -59,36 +29,14 @@ export default async (req) => {
 
   try {
     let schedule = null;
-    let source = null;
 
-    // Try MongoDB first
+    // Load from JSON file
     try {
-      const client = await connectToDatabase();
-      if (client) {
-        const db = client.db('tournament');
-        const collection = db.collection('schedule');
-        const doc = await collection.findOne({ _id: 'tournament-schedule' });
-        
-        if (doc && doc.schedule) {
-          schedule = doc.schedule;
-          source = 'MongoDB';
-          console.log('Schedule loaded from MongoDB');
-        }
-      }
+      const data = await fs.readFile(DB_FILE, 'utf-8');
+      schedule = JSON.parse(data);
+      console.log('Schedule loaded from JSON file:', DB_FILE);
     } catch (err) {
-      console.warn('MongoDB load failed:', err.message);
-    }
-
-    // If MongoDB failed, try JSON file
-    if (!schedule) {
-      try {
-        const data = await fs.readFile(DB_FILE, 'utf-8');
-        schedule = JSON.parse(data);
-        source = 'JSON file';
-        console.log('Schedule loaded from JSON file:', DB_FILE);
-      } catch (err) {
-        console.warn('JSON file load failed:', err.message);
-      }
+      console.warn('JSON file load failed:', err.message);
     }
 
     if (!schedule) {
@@ -104,8 +52,7 @@ export default async (req) => {
 
     return new Response(JSON.stringify({ 
       schedule,
-      message: `Schedule loaded successfully from ${source}`,
-      source
+      message: 'Schedule loaded successfully from file'
     }), {
       status: 200,
       headers
