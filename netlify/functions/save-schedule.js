@@ -1,4 +1,10 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { MongoClient } from 'mongodb';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DB_FILE = path.join(__dirname, '../../db/tournament.json');
 
 let cachedClient = null;
 
@@ -10,7 +16,8 @@ async function connectToDatabase() {
   const mongoUri = process.env.MONGODB_URI;
   
   if (!mongoUri) {
-    throw new Error('MONGODB_URI environment variable is not set');
+    console.warn('MONGODB_URI not set, skipping MongoDB save');
+    return null;
   }
 
   try {
@@ -23,8 +30,8 @@ async function connectToDatabase() {
     console.log('Connected to MongoDB');
     return client;
   } catch (error) {
-    console.error('Failed to connect to MongoDB:', error);
-    throw error;
+    console.warn('Failed to connect to MongoDB:', error.message);
+    return null;
   }
 }
 
@@ -66,24 +73,49 @@ export default async (req) => {
       });
     }
 
-    const client = await connectToDatabase();
-    const db = client.db('tournament');
-    const collection = db.collection('schedule');
-    
-    // Upsert the schedule (replace if exists, insert if not)
-    const result = await collection.updateOne(
-      { _id: 'tournament-schedule' },
-      { $set: { schedule, updatedAt: new Date() } },
-      { upsert: true }
-    );
+    const results = {
+      json: false,
+      mongodb: false,
+      errors: []
+    };
 
-    console.log('Schedule saved to MongoDB');
-    
+    // Save to JSON file
+    try {
+      const dbDir = path.dirname(DB_FILE);
+      await fs.mkdir(dbDir, { recursive: true });
+      await fs.writeFile(DB_FILE, JSON.stringify(schedule, null, 2), 'utf-8');
+      console.log('Schedule saved to JSON file:', DB_FILE);
+      results.json = true;
+    } catch (err) {
+      console.error('Error saving to JSON:', err.message);
+      results.errors.push(`JSON save failed: ${err.message}`);
+    }
+
+    // Save to MongoDB
+    try {
+      const client = await connectToDatabase();
+      if (client) {
+        const db = client.db('tournament');
+        const collection = db.collection('schedule');
+        
+        const result = await collection.updateOne(
+          { _id: 'tournament-schedule' },
+          { $set: { schedule, updatedAt: new Date() } },
+          { upsert: true }
+        );
+        
+        console.log('Schedule saved to MongoDB');
+        results.mongodb = true;
+      }
+    } catch (err) {
+      console.error('Error saving to MongoDB:', err.message);
+      results.errors.push(`MongoDB save failed: ${err.message}`);
+    }
+
     return new Response(JSON.stringify({ 
-      success: true, 
-      message: 'Schedule saved to MongoDB successfully',
-      modifiedCount: result.modifiedCount,
-      upsertedCount: result.upsertedCount
+      success: results.json || results.mongodb,
+      message: 'Schedule saved',
+      saved: results
     }), {
       status: 200,
       headers

@@ -1,4 +1,10 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { MongoClient } from 'mongodb';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DB_FILE = path.join(__dirname, '../../db/tournament.json');
 
 let cachedClient = null;
 
@@ -10,7 +16,8 @@ async function connectToDatabase() {
   const mongoUri = process.env.MONGODB_URI;
   
   if (!mongoUri) {
-    throw new Error('MONGODB_URI environment variable is not set');
+    console.warn('MONGODB_URI not set, skipping MongoDB');
+    return null;
   }
 
   try {
@@ -23,8 +30,8 @@ async function connectToDatabase() {
     console.log('Connected to MongoDB');
     return client;
   } catch (error) {
-    console.error('Failed to connect to MongoDB:', error);
-    throw error;
+    console.warn('Failed to connect to MongoDB:', error.message);
+    return null;
   }
 }
 
@@ -51,15 +58,41 @@ export default async (req) => {
   }
 
   try {
-    const client = await connectToDatabase();
-    const db = client.db('tournament');
-    const collection = db.collection('schedule');
-    
-    // Find the tournament schedule
-    const doc = await collection.findOne({ _id: 'tournament-schedule' });
-    
-    if (!doc || !doc.schedule) {
-      console.log('No saved schedule found in MongoDB');
+    let schedule = null;
+    let source = null;
+
+    // Try MongoDB first
+    try {
+      const client = await connectToDatabase();
+      if (client) {
+        const db = client.db('tournament');
+        const collection = db.collection('schedule');
+        const doc = await collection.findOne({ _id: 'tournament-schedule' });
+        
+        if (doc && doc.schedule) {
+          schedule = doc.schedule;
+          source = 'MongoDB';
+          console.log('Schedule loaded from MongoDB');
+        }
+      }
+    } catch (err) {
+      console.warn('MongoDB load failed:', err.message);
+    }
+
+    // If MongoDB failed, try JSON file
+    if (!schedule) {
+      try {
+        const data = await fs.readFile(DB_FILE, 'utf-8');
+        schedule = JSON.parse(data);
+        source = 'JSON file';
+        console.log('Schedule loaded from JSON file:', DB_FILE);
+      } catch (err) {
+        console.warn('JSON file load failed:', err.message);
+      }
+    }
+
+    if (!schedule) {
+      console.log('No saved schedule found');
       return new Response(JSON.stringify({ 
         schedule: null, 
         message: 'No saved data available. Using default schedule.' 
@@ -69,12 +102,10 @@ export default async (req) => {
       });
     }
 
-    console.log('Schedule loaded from MongoDB');
-    
     return new Response(JSON.stringify({ 
-      schedule: doc.schedule, 
-      message: 'Schedule loaded successfully',
-      updatedAt: doc.updatedAt
+      schedule,
+      message: `Schedule loaded successfully from ${source}`,
+      source
     }), {
       status: 200,
       headers
