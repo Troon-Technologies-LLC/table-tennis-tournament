@@ -12,9 +12,9 @@ let currentView = 'schedule';
 let schedule = JSON.parse(JSON.stringify(initialSchedule)); // Deep copy
 
 // Initialize app
-function init() {
-  // Load saved data
-  const savedMatches = loadMatches();
+async function init() {
+  // Load saved data from Excel
+  const savedMatches = await loadMatches();
   if (savedMatches) {
     schedule = savedMatches;
   }
@@ -69,7 +69,7 @@ function navigateTo(view) {
 }
 
 // Save a match score
-function saveScore(matchId, score1, score2, subMatches) {
+async function saveScore(matchId, score1, score2, subMatches) {
   // Find and update the match
   schedule.forEach(day => {
     day.matches.forEach(match => {
@@ -83,8 +83,8 @@ function saveScore(matchId, score1, score2, subMatches) {
 
   checkAndGeneratePlayoffs();
 
-  // Save to localStorage
-  saveMatches(schedule);
+  // Save to localStorage and Excel file
+  await saveMatches(schedule);
 
   // Re-render if in scores view to show new matches if any
   if (currentView === 'scores') {

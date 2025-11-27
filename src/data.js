@@ -13,7 +13,7 @@ export const teams = {
   'bug-busters': {
     id: 'bug-busters',
     name: 'Bug Busters',
-    players: ['Usman', 'AMin']
+    players: ['Usman', 'Amin']
   },
   'cool-coders': {
     id: 'cool-coders',
