@@ -1,66 +1,72 @@
-// Use relative URLs so they work both locally and on Netlify
-const API_URL = '/.netlify/functions/save-schedule';
+// MongoDB API endpoints (works both locally and on Netlify)
+const SAVE_API_URL = '/.netlify/functions/save-schedule';
 const LOAD_API_URL = '/.netlify/functions/load-schedule';
 
-// Load match data from Excel file
+/**
+ * Load tournament schedule from MongoDB
+ * Falls back to default schedule if no data exists
+ */
 export async function loadMatches() {
     try {
-        console.log('Loading data from Excel file...');
+        console.log('Loading schedule from MongoDB...');
         const response = await fetch(LOAD_API_URL);
         
         if (!response.ok) {
-            console.warn('Failed to load from Excel:', response.statusText);
+            console.warn('Failed to load from MongoDB:', response.statusText);
             return null;
         }
         
         const data = await response.json();
-        console.log('Data loaded from Excel:', data);
+        console.log('Schedule loaded from MongoDB:', data.message);
         return data.schedule || null;
     } catch (error) {
-        console.warn('Could not load from Excel file:', error.message);
+        console.warn('Could not connect to MongoDB:', error.message);
         return null;
     }
 }
 
-// Save match data to Excel file only
+/**
+ * Save tournament schedule to MongoDB
+ * This is the single source of truth for all data
+ */
 export async function saveMatches(matches) {
     try {
-        console.log('Saving data to Excel file...');
+        console.log('Saving schedule to MongoDB...');
         
-        const response = await fetch(API_URL, {
+        const response = await fetch(SAVE_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(matches)
         });
         
-        console.log('API Response status:', response.status);
-        
         if (!response.ok) {
-            console.error('Failed to save to Excel:', response.statusText);
+            console.error('Failed to save to MongoDB:', response.statusText);
             return false;
         }
         
         const data = await response.json();
-        console.log('Excel saved successfully:', data.message);
+        console.log('Schedule saved to MongoDB:', data.message);
         return true;
     } catch (error) {
-        console.error('Error saving to Excel:', error.message);
+        console.error('Error saving to MongoDB:', error.message);
         return false;
     }
 }
 
-// Reset all data
+/**
+ * Reset tournament data in MongoDB
+ */
 export async function resetTournament() {
     try {
-        console.log('Resetting tournament data...');
-        const response = await fetch(API_URL + '?reset=true', {
+        console.log('Resetting tournament data in MongoDB...');
+        const response = await fetch(SAVE_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify([])
         });
         
         if (response.ok) {
-            console.log('Tournament data reset');
+            console.log('Tournament data reset in MongoDB');
             return true;
         }
         return false;
