@@ -3,8 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { MongoClient } from 'mongodb';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_FILE = path.join(__dirname, '../../db/tournament.json');
+const saveDirname = path.dirname(fileURLToPath(import.meta.url));
+const DB_FILE = path.join(saveDirname, '../../db/tournament.json');
 
 let cachedClient = null;
 
