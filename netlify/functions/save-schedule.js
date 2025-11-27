@@ -1,4 +1,32 @@
-import { getScheduleCollection } from './lib/mongodb.js';
+import { MongoClient } from 'mongodb';
+
+let cachedClient = null;
+
+async function connectToDatabase() {
+  if (cachedClient) {
+    return cachedClient;
+  }
+
+  const mongoUri = process.env.MONGODB_URI;
+  
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI environment variable is not set');
+  }
+
+  try {
+    const client = new MongoClient(mongoUri, {
+      maxPoolSize: 10,
+    });
+
+    await client.connect();
+    cachedClient = client;
+    console.log('Connected to MongoDB');
+    return client;
+  } catch (error) {
+    console.error('Failed to connect to MongoDB:', error);
+    throw error;
+  }
+}
 
 export default async (req, res) => {
   // Enable CORS
@@ -21,7 +49,9 @@ export default async (req, res) => {
       return res.status(400).json({ error: 'Invalid schedule data' });
     }
 
-    const collection = await getScheduleCollection();
+    const client = await connectToDatabase();
+    const db = client.db('tournament');
+    const collection = db.collection('schedule');
     
     // Upsert the schedule (replace if exists, insert if not)
     const result = await collection.updateOne(
