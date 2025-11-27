@@ -1,5 +1,6 @@
-const API_URL = 'http://localhost:3001/api/save-schedule';
-const LOAD_API_URL = 'http://localhost:3001/api/load-schedule';
+// Use relative URLs so they work both locally and on Netlify
+const API_URL = '/.netlify/functions/save-schedule';
+const LOAD_API_URL = '/.netlify/functions/load-schedule';
 
 // Load match data from Excel file
 export async function loadMatches() {
