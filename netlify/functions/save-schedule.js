@@ -28,7 +28,7 @@ async function connectToDatabase() {
   }
 }
 
-export default async (req, res) => {
+export default async (req) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -37,19 +37,17 @@ export default async (req, res) => {
   };
 
   if (req.method === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
+    return new Response('', {
+      status: 200,
+      headers
+    });
   }
 
   if (req.method !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers
+    });
   }
 
   try {
@@ -62,11 +60,10 @@ export default async (req, res) => {
     }
     
     if (!schedule || !Array.isArray(schedule)) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Invalid schedule data' })
-      };
+      return new Response(JSON.stringify({ error: 'Invalid schedule data' }), {
+        status: 400,
+        headers
+      });
     }
 
     const client = await connectToDatabase();
@@ -82,22 +79,20 @@ export default async (req, res) => {
 
     console.log('Schedule saved to MongoDB');
     
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ 
-        success: true, 
-        message: 'Schedule saved to MongoDB successfully',
-        modifiedCount: result.modifiedCount,
-        upsertedCount: result.upsertedCount
-      })
-    };
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: 'Schedule saved to MongoDB successfully',
+      modifiedCount: result.modifiedCount,
+      upsertedCount: result.upsertedCount
+    }), {
+      status: 200,
+      headers
+    });
   } catch (error) {
     console.error('Error saving schedule:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ success: false, error: error.message })
-    };
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 500,
+      headers
+    });
   }
 };
