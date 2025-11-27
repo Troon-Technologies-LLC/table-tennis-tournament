@@ -29,24 +29,44 @@ async function connectToDatabase() {
 }
 
 export default async (req, res) => {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
+  };
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
   }
 
   try {
-    const schedule = req.body;
+    let schedule;
+    
+    if (typeof req.body === 'string') {
+      schedule = JSON.parse(req.body);
+    } else {
+      schedule = req.body;
+    }
     
     if (!schedule || !Array.isArray(schedule)) {
-      return res.status(400).json({ error: 'Invalid schedule data' });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Invalid schedule data' })
+      };
     }
 
     const client = await connectToDatabase();
@@ -62,14 +82,22 @@ export default async (req, res) => {
 
     console.log('Schedule saved to MongoDB');
     
-    res.status(200).json({ 
-      success: true, 
-      message: 'Schedule saved to MongoDB successfully',
-      modifiedCount: result.modifiedCount,
-      upsertedCount: result.upsertedCount
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        success: true, 
+        message: 'Schedule saved to MongoDB successfully',
+        modifiedCount: result.modifiedCount,
+        upsertedCount: result.upsertedCount
+      })
+    };
   } catch (error) {
     console.error('Error saving schedule:', error);
-    res.status(500).json({ success: false, error: error.message });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, error: error.message })
+    };
   }
 };

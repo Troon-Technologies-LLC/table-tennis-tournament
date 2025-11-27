@@ -29,17 +29,27 @@ async function connectToDatabase() {
 }
 
 export default async (req, res) => {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
+  };
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
   }
 
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
   }
 
   try {
@@ -52,21 +62,33 @@ export default async (req, res) => {
     
     if (!doc || !doc.schedule) {
       console.log('No saved schedule found in MongoDB');
-      return res.status(200).json({ 
-        schedule: null, 
-        message: 'No saved data available. Using default schedule.' 
-      });
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          schedule: null, 
+          message: 'No saved data available. Using default schedule.' 
+        })
+      };
     }
 
     console.log('Schedule loaded from MongoDB');
     
-    res.status(200).json({ 
-      schedule: doc.schedule, 
-      message: 'Schedule loaded successfully',
-      updatedAt: doc.updatedAt
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        schedule: doc.schedule, 
+        message: 'Schedule loaded successfully',
+        updatedAt: doc.updatedAt
+      })
+    };
   } catch (error) {
     console.error('Error loading schedule:', error);
-    res.status(500).json({ success: false, error: error.message });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, error: error.message })
+    };
   }
 };
